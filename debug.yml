@@ -1,0 +1,15 @@
+- hosts: localhost
+  connection: local
+  tasks:    
+  - name: loop debug inventory hostnames
+    debug: 
+      msg: "1 the host is {{ item }}"
+    with_inventory_hostnames: cluster
+  - name: loop debug items
+    debug: 
+      msg: "2 the host is {{ hostvars[item]['inventory_hostname'] }} and ip is {{ hostvars[item]['ansible_host'] }}"
+    with_items: "{{ groups['cluster'] }}"
+  - name: loop debug items
+    debug: 
+      msg: "2 the total is {{ hostvars[item] }}"
+    with_items: "{{ groups['cluster'] }}"      

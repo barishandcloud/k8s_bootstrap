@@ -1,0 +1,8 @@
+https://computingforgeeks.com/deploy-kubernetes-cluster-on-ubuntu-with-kubeadm/
+
+ansible-playbook 01-prepbox.yml -i hosts.ini --ask-become-pass
+ansible-playbook 02-clone.yml -i hosts.ini
+ansible-playbook 03-change_hostname.yml -i hosts.ini
+ansible-playbook 04-etcupdate.yml -i hosts.ini
+ansible-playbook 05-master.yml -i hosts.ini
+ansible-playbook 06-workers.yml -i hosts.ini

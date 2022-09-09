@@ -1,0 +1,121 @@
+- hosts: cluster
+  become: yes
+  tasks:
+  - name: remove swap
+    shell: "swapoff -a"
+  - name: Disabling swap from fstab…
+    replace:
+      path: /etc/fstab
+      regexp: ‘^([^#].*?\sswap\s+sw\s+.*)$’
+      replace: ‘# \1’
+  - name: modprobe overlay
+    shell: "modprobe overlay"
+  - name: modprobe br_netfilter
+    shell: "modprobe br_netfilter"
+  - name: copy kubernetes.conf
+    copy:
+      src: 'artefacts/kubernetes.conf' 
+      dest: '/etc/sysctl.d/kubernetes.conf'
+  - name: sysctl --system
+    shell: "sysctl --system"
+  - name: sysctl --system
+    shell: "sysctl -p /etc/sysctl.d/kubernetes.conf"
+  - name: create docker service dir
+    file:
+      path: /etc/systemd/system/docker.service.d
+      state: directory  
+  - name: copy daemon.json
+    copy:
+      src: 'artefacts/daemon.json' 
+      dest: '/etc/docker/daemon.json'
+  - name: Disabling UFW…
+    ufw:
+      state: disabled
+  - name: force systemd to reread configs
+    systemd:
+      daemon_reload: yes
+  - name: Restart service docker
+    systemd:
+      state: restarted
+      name: docker
+  - name: Enable service docker
+    systemd:
+      enabled: yes
+      name: docker
+  - name: Enable service kubelet
+    systemd:
+      enabled: yes
+      name: kubelet
+  - name: curl crio version
+    register: out1
+    shell: |
+      curl -s https://api.github.com/repos/Mirantis/cri-dockerd/releases/latest|grep tag_name | cut -d '"' -f 4|sed 's/v//g'
+  - name: Fetch crio file with right version
+    get_url: 
+      url: https://github.com/Mirantis/cri-dockerd/releases/download/v{{ out1.stdout }}/cri-dockerd-{{ out1.stdout }}.amd64.tgz
+      dest: /tmp/cri-dockerd-{{ out1.stdout }}.amd64.tgz
+  - name: Unarchive crio files
+    unarchive: 
+      src: /tmp/cri-dockerd-{{ out1.stdout }}.amd64.tgz
+      dest: /tmp
+      remote_src: yes
+  - name: move crio binaries to bin
+    shell: |
+      mv /tmp/cri-dockerd/cri-dockerd /usr/local/bin/
+  - name: Fetch crio service ans socket files
+    get_url: 
+      url: "{{ item }}"
+      dest: /etc/systemd/system/
+    loop:
+      - https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service
+      - https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket
+  - name: crio service configure
+    shell: |
+      sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+  - name: force systemd to reread configs
+    systemd:
+      daemon_reload: yes
+  - name: Restart service docker
+    systemd:
+      state: restarted
+      name: "{{ item }}"
+    loop:
+      - cri-docker.service
+      - cri-docker.socket    
+  - name: Enable service crio
+    systemd:
+      enabled: yes
+      name: "{{ item }}"
+    loop:
+      - cri-docker.service
+      - cri-docker.socket
+
+- hosts: masters
+  become: yes
+  tasks:       
+  - name: install kubectl for master
+    apt:
+     name: kubectl
+     state: present      
+  - name: initialize the cluster on master
+    register: out1
+    shell: kubeadm init --apiserver-advertise-address 192.168.56.200 --pod-network-cidr 10.244.0.0/16 --cri-socket unix:///run/cri-dockerd.sock | tee -a cluster_initialized.txt
+    args:
+     chdir: $HOME
+     creates: cluster_initialized.txt
+  - debug: var=out1.stdout_lines 
+  - name: create .kube directory
+    become_user: manju
+    file:
+     path: $HOME/.kube
+     state: directory
+     mode: 0755 
+  - name: copy admin.conf to user's kube config
+    copy:
+     src: /etc/kubernetes/admin.conf
+     dest: /home/manju/.kube/config
+     remote_src: yes
+     owner: manju
+  - name: install Pod network
+    become_user: manju
+    shell: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml

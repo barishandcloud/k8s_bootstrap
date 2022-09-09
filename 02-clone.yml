@@ -1,0 +1,10 @@
+- hosts: localhost
+  name: clone into required vms
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: cloning the vm and change specs for cluster vms
+    shell: |
+      vboxmanage clonevm "useforcloneubu" --mode="machine" --name={{ hostvars[item]['inventory_hostname'] }} --register
+      vboxmanage modifyvm {{ hostvars[item]['inventory_hostname'] }} --memory 4096 --cpus 2
+    with_items: "{{ groups['cluster'] }}"  

@@ -1,0 +1,42 @@
+- hosts: localhost
+  name: start {{ hostvars[collect].inventory_hostname }}
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: starting {{ hostvars[collect].inventory_hostname }}
+    register: out1
+    shell: |
+      vboxmanage startvm {{ hostvars[collect].inventory_hostname }} --type headless
+  - debug: var=out1.stdout_lines
+
+- hosts: clonebox
+  gather_facts: no
+  tasks:
+  - name: wait until {{ hostvars[collect].inventory_hostname }} is up
+    wait_for_connection:
+      delay: 30
+      timeout: 300
+
+- hosts: clonebox
+  become: true
+  tasks:
+  - name: populate ip in netcfg file for '{{ hostvars[collect].inventory_hostname }}'
+    replace:
+      path: '/home/manju/01-netcfg.yaml'
+      regexp: '###ipaddress###'
+      replace: "{{ hostvars[collect]['ansible_host'] }}"
+  - name: copy netcfg to etc file 
+    copy:
+      src: '/home/manju/01-netcfg.yaml' 
+      dest: '/etc/netplan/01-netcfg.yaml'
+      remote_src: yes
+  - name: set hostname for '{{ hostvars[collect].inventory_hostname }}'
+    shell: |
+      hostnamectl set-hostname '{{ hostvars[collect].inventory_hostname }}'
+      sed -i "s/useforcloneubu/'{{ hostvars[collect].inventory_hostname }}'/g" /etc/hosts    
+  - name: apply ip change for '{{ hostvars[collect].inventory_hostname }}'
+    shell: |
+      netplan apply
+    async: 45
+    poll: 0 
+ 

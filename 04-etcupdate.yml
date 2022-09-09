@@ -1,0 +1,17 @@
+- hosts: cluster
+  name: Populate /etc/hosts and verify
+  become: true
+  gather_facts: false
+  tasks:	  
+  - name: Build hosts file
+    lineinfile: 
+      dest: /etc/hosts 
+      state: present
+      insertafter: EOF
+      line: "{{ hostvars[item]['ansible_host']}} {{item}}"
+    with_items: "{{ groups['cluster'] }}"
+  - name: check /etc/hosts
+    register: out1
+    shell: |
+      cat /etc/hosts
+  - debug: var=out1.stdout_lines

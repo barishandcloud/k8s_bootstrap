@@ -1,0 +1,84 @@
+- hosts: localhost
+  name: start useforcloneubu
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: starting "useforcloneubu"
+      register: out1
+      shell: |
+        vboxmanage startvm "useforcloneubu" --type headless
+    - debug: var=out1.stdout_lines
+
+- hosts: clonebox
+  name: wait till useforcloneubu comes up
+  gather_facts: no
+  tasks:
+    - name: wait until useforcloneubu is up
+      wait_for_connection:
+        delay: 30
+        timeout: 300
+
+- hosts: clonebox
+  name: configure the clonebox
+  become: yes
+  tasks:
+  - name: Update and upgrade apt packages
+    apt:
+     upgrade: yes
+     update_cache: "True"
+  - name: allow 'manju' to have passwordless sudo
+    lineinfile:
+      dest: /etc/sudoers
+      line: 'manju ALL=(ALL) NOPASSWD: ALL'
+      validate: 'visudo -cf %s'     
+  - name: install APT Transport HTTPS, apache2-utils, tree
+    apt:
+     name: 
+      - apt-transport-https
+      - apache2-utils
+      - tree
+     state: present
+  - name: add Kubernetes & docker apt-key
+    apt_key:
+     url: "{{ item }}"
+     state: present
+    loop: 
+     - 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'
+     - 'https://download.docker.com/linux/ubuntu/gpg'
+  - name: add Kubernetes & docker to APT repository
+    apt_repository:
+     repo: "{{ item }}"
+     state: present
+    loop: 
+     - 'deb http://apt.kubernetes.io/ kubernetes-xenial main'
+     - 'deb https://download.docker.com/linux/ubuntu bionic stable'
+  - name: install Docker, kubelet
+    apt:
+     name: 
+     - docker-ce
+     - docker-ce-cli
+     - kubelet=1.25.0-00
+     - kubeadm=1.25.0-00
+     state: present
+     update_cache: 'True'
+  - name: hold kubelet
+    dpkg_selections:
+     name: "{{ item }}"
+     selection: hold
+    loop:
+     - 'kubelet'
+     - 'kubeadm'
+  - name: add manja to docker group
+    shell: |
+      usermod -aG docker manju     
+  - name: pull images
+    shell: |
+      kubeadm config images pull
+  - name: copy netcfg file 
+    copy:
+      src: 'artefacts/01-netcfg.yaml'
+      dest: '/home/manju/01-netcfg.yaml'
+  - name: shutdown hosts
+    command: /sbin/shutdown -h now
+    async: 45
+    poll: 0      

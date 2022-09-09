@@ -1,0 +1,22 @@
+- hosts: masters
+  become: yes
+  gather_facts: false
+  tasks:
+  - name: get join command
+    shell: kubeadm token create --print-join-command
+    register: join_command_raw
+  - name: "placeholder dummy join"
+    add_host:
+      name:   "JOIN_HOLDER"
+      token:  "{{ join_command_raw.stdout_lines[0] }}"
+  - debug: 
+      msg="{{ hostvars['JOIN_HOLDER']['token'] }}"
+
+- hosts: workers
+  become: yes
+  tasks:
+  - name: join cluster
+    shell: "{{ hostvars['JOIN_HOLDER']['token'] }} >> node_joined.txt"
+    args:
+      chdir: $HOME
+      creates: node_joined.txt      

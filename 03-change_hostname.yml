@@ -1,0 +1,15 @@
+- import_playbook: 03.1-change_hostname.yml
+  vars:
+    collect: "{{ groups['masters'][0] }}"
+
+- import_playbook: 03.1-change_hostname.yml
+  vars:
+    collect: "{{ groups['workers'][0] }}"
+
+- import_playbook: 03.1-change_hostname.yml
+  vars:
+    collect: "{{ groups['workers'][1] }}"
+
+- import_playbook: 03.1-change_hostname.yml
+  vars:
+    collect: "{{ groups['workers'][2] }}"            
