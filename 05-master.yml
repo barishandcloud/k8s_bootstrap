@@ -99,11 +99,11 @@
      state: present      
   - name: initialize the cluster on master
     register: out1
-    shell: kubeadm init --apiserver-advertise-address master1 --pod-network-cidr 10.244.0.0/16 --cri-socket unix:///run/cri-dockerd.sock | tee -a cluster_initialized.txt
+    shell: kubeadm init --apiserver-advertise-address 192.168.56.200 --pod-network-cidr 10.244.0.0/16 --cri-socket unix:///run/cri-dockerd.sock | tee -a cluster_initialized.txt
     args:
-     chdir: $HOME
+     chdir: /home/manju/
      creates: cluster_initialized.txt
-  - debug: var=out1.stdout_lines 
+  - debug: var=out1.stdout_lines
   - name: create .kube directory
     become_user: manju
     file:
