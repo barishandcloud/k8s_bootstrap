@@ -70,7 +70,16 @@
      - 'kubeadm'
   - name: add manja to docker group
     shell: |
-      usermod -aG docker manju     
+      usermod -aG docker manju
+  - name: comment a line in /etc/containerd/config.toml
+    replace:
+      path: /etc/containerd/config.toml   #https://stackoverflow.com/questions/72504257/i-encountered-when-executing-kubeadm-init-error-issue
+      regexp: 'disabled_plugins'
+      replace: '#disabled_plugins'
+  - name: Restart service docker
+    systemd:
+      state: restarted
+      name: containerd    
   - name: pull images
     shell: |
       kubeadm config images pull
@@ -81,4 +90,4 @@
   - name: shutdown hosts
     command: /sbin/shutdown -h now
     async: 45
-    poll: 0      
+    poll: 0

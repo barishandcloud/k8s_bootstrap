@@ -1,5 +1,7 @@
 https://computingforgeeks.com/deploy-kubernetes-cluster-on-ubuntu-with-kubeadm/
 
+https://github.com/barishandcloud/k8s_bootstrap
+
 ansible-playbook 01-prepbox.yml -i hosts.ini --ask-become-pass
 ansible-playbook 02-clone.yml -i hosts.ini
 ansible-playbook 03-change_hostname.yml -i hosts.ini
