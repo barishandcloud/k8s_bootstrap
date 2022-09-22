@@ -81,8 +81,10 @@
       state: restarted
       name: containerd    
   - name: pull images
+    register: imageout
     shell: |
       kubeadm config images pull
+  - debug: var=imageout.stdout_lines
   - name: copy netcfg file 
     copy:
       src: 'artefacts/01-netcfg.yaml'
