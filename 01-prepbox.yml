@@ -11,7 +11,7 @@
 
 - hosts: clonebox
   name: wait till useforcloneubu comes up
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: wait until useforcloneubu is up
       wait_for_connection:
